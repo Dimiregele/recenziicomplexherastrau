@@ -257,12 +257,21 @@ export default function ScanClient({ restaurant, scanId }: { restaurant: Restaur
   const [contactEmail, setContactEmail] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  const handlePositive = () => {
-    updateScan(scanId, { choice: "positive" });
+  const handlePositive = async () => {
     setView("redirecting");
-    setTimeout(() => {
-      window.location.href = restaurant.googleReviewUrl;
-    }, 700);
+    const minDelay = new Promise((resolve) => setTimeout(resolve, 700));
+    try {
+      // Asteptam update-ul SI intarzierea minima -- pe conexiuni rapide se
+      // simte identic (tot ~700ms), dar pe o conexiune slaba asteptam cat e
+      // nevoie ca scanarea sa chiar apuce sa se salveze inainte sa navigam.
+      // Fara asta, request-ul putea fi anulat de browser la schimbarea
+      // paginii, pierzand exact scanarea cea mai importanta -- cea pozitiva.
+      await Promise.all([updateScan(scanId, { choice: "positive" }), minDelay]);
+    } catch {
+      // Chiar daca update-ul nostru de analytics esueaza, tot il trimitem pe
+      // client catre Google -- nu-l blocam din cauza unei erori de-a noastre.
+    }
+    window.location.href = restaurant.googleReviewUrl;
   };
 
   const handleSubmitComplaint = async (e: React.FormEvent) => {
